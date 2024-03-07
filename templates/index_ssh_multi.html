@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Docker Container Information</title>
+</head>
+<body>
+    <div>
+        {% for remote_host, data in all_containers.items() %}
+            <h1>Running Docker Containers on {{ remote_host }}</h1>
+            {% if data.error %}
+                <p>{{ data.error }}</p>
+            {% else %}
+                <table border="1">
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Image</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                    {% for container in data.containers %}
+                        <tr>
+                            <td>{{ container.id }}</td>
+                            <td>{{ container.name }}</td>
+                            <td>{{ container.image }}</td>
+                            <td>{{ container.status }}</td>
+                            <td>
+                                <button onclick="restartContainer('{{ remote_host }}', '{{ container.id }}')">Restart</button>
+                                {% if data.action %}
+                                    <button onclick="runAction('{{ remote_host }}')">{{data.action.name}}</button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </table>
+            {% endif %}
+        {% endfor %}
+    </div>
+    <script>
+        function restartContainer(remoteHost, containerId) {
+            var confirmRestart = confirm("Are you sure you want to restart the container?");
+            if (confirmRestart) {
+                fetch(`/restart/${remoteHost}/${containerId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to restart container on ${remoteHost}: ${response.statusText}`);
+                        }
+                        return response.text();
+                    })
+                    .then(data => {
+                        document.querySelector("body > div").innerHTML = "Restarting...";
+                        setTimeout(() => {
+                            window.location.reload()
+                        }, 5000);
+                    })
+                    .catch(error => {
+                        alert(`Error: ${error.message}`);
+                    });
+            }
+        }
+
+        function runAction(remoteHost) {
+            fetch(`/run-action/${remoteHost}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to run action on ${remoteHost}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    alert(data.message || data.error || "Action executed successfully");
+                })
+                .catch(error => {
+                    alert(`Error: ${error.message}`);
+                });
+        }
+    </script>
+</body>
+</html>
