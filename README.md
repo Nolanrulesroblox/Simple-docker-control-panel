@@ -10,7 +10,7 @@ nano server.py
 ```
 Once you are editing the server.py, remove the examples from ``` remote_hosts``` and add your own.
 once done,
-```
+```bash
 python3 app.py
 ```
 and you are off to the races.
