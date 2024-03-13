@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Docker Container Information</title>
+    <style>
+        #addHostForm{
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+    </style>
 </head>
 <body>
     <div>
@@ -31,12 +38,34 @@
                                 {% if data.action %}
                                     <button onclick="runAction('{{ remote_host }}')">{{data.action.name}}</button>
                                 {% endif %}
+                                <button onclick="deleteHost('{{ remote_host }}')">Delete</button>
                             </td>
                         </tr>
                     {% endfor %}
                 </table>
             {% endif %}
         {% endfor %}
+    </div>
+    <div>
+        <h2>Add New Host</h2>
+        <form id="addHostForm" onsubmit="addHost(event)">
+            <label for="newHost">Host:</label>
+            <input type="text" id="newHost" name="newHost" required  autocomplete="off">
+
+            <label for="newUsername">Username:</label>
+            <input type="text" id="newUsername" name="newUsername" required autocomplete="off">
+
+            <label for="newPassword">Password: (plain text)</label>
+            <input type="text" id="newPassword" name="newPassword" required  autocomplete="off">
+
+            <label for="newActionName">Action Name (optional):</label>
+            <input type="text" id="newActionName" name="newActionName" autocomplete="off">
+
+            <label for="newActionUrl">Action script (optional):</label>
+            <input type="text" id="newActionUrl" name="newActionUrl" autocomplete="off">
+
+            <button type="submit">Add Host</button>
+        </form>
     </div>
     <script>
         function restartContainer(remoteHost, containerId) {
@@ -75,6 +104,59 @@
                 .catch(error => {
                     alert(`Error: ${error.message}`);
                 });
+        }
+        function addHost(event) {
+            event.preventDefault();
+
+            var newHost = document.getElementById("newHost").value;
+            var newUsername = document.getElementById("newUsername").value;
+            var newPassword = document.getElementById("newPassword").value;
+            var newActionName = document.getElementById("newActionName").value;
+            var newActionUrl = document.getElementById("newActionUrl").value;
+
+            fetch("/add-host", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    host: newHost,
+                    credentials: [newUsername, newPassword],
+                    action: newActionName ? { name: newActionName, url: newActionUrl } : null
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Failed to add new host: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert(data.message || data.error || "Host added successfully");
+                window.location.reload();
+            })
+            .catch(error => {
+                alert(`Error: ${error.message}`);
+            });
+        }
+        function deleteHost(remoteHost) {
+            var confirmDelete = confirm("Are you sure you want to delete this host?");
+            if (confirmDelete) {
+                fetch(`/delete-host/${remoteHost}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`Failed to delete host: ${response.statusText}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        alert(data.message || data.error || "Host deleted successfully");
+                        window.location.reload();
+                    })
+                    .catch(error => {
+                        alert(`Error: ${error.message}`);
+                    });
+            }
         }
     </script>
 </body>
