@@ -1,18 +1,23 @@
-from flask import Flask, render_template, redirect, url_for, jsonify
+from flask import Flask, render_template, redirect, url_for, jsonify,request
 import paramiko
 import json
-
+import webbrowser
 app = Flask(__name__)
-remote_hosts = {
-        "IPV4": {
-            "credentials": ("username", "password"),
-            "action": {"name": "Name of the action", "url": "shutdown now"},
-        },
-        "192.168.x.x": {
-            "credentials": ("username", "password"),
-        },
-        # Add more hosts as needed
-    }
+def read_remote_hosts_from_json():
+    try:
+        with open("remote_hosts.json", "r") as file:
+            data = json.load(file)
+            return data.get("hosts", {})
+    except Exception as e:
+        print(f"Error reading remote_hosts.json: {e}")
+        return {}
+def write_remote_hosts_to_json(remote_hosts):
+    try:
+        with open("remote_hosts.json", "w") as file:
+            json.dump({"hosts": remote_hosts}, file, indent=2)
+    except Exception as e:
+        print(f"Error writing remote_hosts.json: {e}")
+remote_hosts = read_remote_hosts_from_json()
 def run_addon_script(remote_host, username, password, script_url, port=22):
     try:
         # Establish an SSH connection
@@ -120,6 +125,40 @@ def run_action(remote_host):
         return jsonify({"message": f"Action '{action_name}' executed successfully on {remote_host}"})
     else:
         return jsonify({"error": f"Failed to execute action '{action_name}' on {remote_host}"})
+@app.route('/add-host', methods=['POST'])
+def add_host():
+    global remote_hosts
+    try:
+        data = request.get_json()
+        new_host = data.get('host')
+        credentials = data.get('credentials')
+        action = data.get('action')
+
+        remote_hosts[new_host] = {
+            'credentials': credentials,
+            'action': action
+        }
+
+        with open("remote_hosts.json", "w") as file:
+            json.dump({'hosts': remote_hosts}, file, indent=4)
+        remote_hosts = read_remote_hosts_from_json()
+        return jsonify({"message": f"Host '{new_host}' added successfully"})
+    except Exception as e:
+        return jsonify({"error": f"Failed to add host: {str(e)}"})
+
+def delete_host(remote_host):
+    try:
+        del remote_hosts[remote_host]
+        write_remote_hosts_to_json(remote_hosts)
+        return "Host deleted successfully"
+    except KeyError:
+        return f"Host {remote_host} not found"
+
+@app.route('/delete-host/<remote_host>')
+def delete_host_route(remote_host):
+    result = delete_host(remote_host)
+    return jsonify({"message": result})
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True,port=50000,host="127.0.0.1")
+    webbrowser.open_new_tab('127.0.0.1:50000')
