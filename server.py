@@ -160,5 +160,5 @@ def delete_host_route(remote_host):
     return jsonify({"message": result})
 
 if __name__ == "__main__":
+    webbrowser.open_new_tab('http://127.0.0.1:50000')
     app.run(debug=True,port=50000,host="127.0.0.1")
-    webbrowser.open_new_tab('127.0.0.1:50000')
